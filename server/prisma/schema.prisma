@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────── Enums ─────────
+enum Role {
+  STUDENT
+  REP        // student representative
+  LECTURER
+  ADMIN
+}
+
+enum Weekday {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+enum ProgressStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum GroupRole {
+  OWNER
+  MEMBER
+}
+
+// ───────── Identity ─────────
+model University {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  city      String?
+  createdAt DateTime @default(now())
+
+  users         User[]
+  courses       Course[]
+  announcements Announcement[]
+  events        Event[]
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  role          Role     @default(STUDENT)
+  studentNumber String?
+  isActive      Boolean  @default(true)
+  universityId  String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  university University @relation(fields: [universityId], references: [id])
+
+  taughtCourses    Course[]
+  enrollments      Enrollment[]
+  refreshTokens    RefreshToken[]
+  assignmentsMade  Assignment[]
+  progress         AssignmentProgress[]
+  reminders        Reminder[]
+  announcements    Announcement[]
+  eventsCreated    Event[]
+  ownedGroups      StudyGroup[]
+  groupMemberships GroupMember[]
+  notes            Note[]
+
+  @@unique([universityId, studentNumber])
+  @@index([universityId, role])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ───────── Academics ─────────
+model Course {
+  id           String   @id @default(cuid())
+  code         String
+  title        String
+  semester     String
+  universityId String
+  lecturerId   String?
+  createdAt    DateTime @default(now())
+
+  university University @relation(fields: [universityId], references: [id])
+  lecturer   User?      @relation(fields: [lecturerId], references: [id], onDelete: SetNull)
+
+  enrollments   Enrollment[]
+  slots         TimetableSlot[]
+  assignments   Assignment[]
+  announcements Announcement[]
+  groups        StudyGroup[]
+  notes         Note[]
+
+  @@unique([universityId, code, semester])
+  @@index([lecturerId])
+}
+
+model Enrollment {
+  id         String   @id @default(cuid())
+  userId     String
+  courseId   String
+  enrolledAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+}
+
+model TimetableSlot {
+  id        String  @id @default(cuid())
+  courseId  String
+  dayOfWeek Weekday
+  startTime String  // "08:00" (24h)
+  endTime   String  // "10:00"
+  room      String?
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId, dayOfWeek])
+}
+
+// ───────── Assignments & reminders ─────────
+model Assignment {
+  id          String   @id @default(cuid())
+  courseId    String
+  createdById String
+  title       String
+  description String?  @db.Text
+  dueAt       DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id])
+
+  progress  AssignmentProgress[]
+  reminders Reminder[]
+
+  @@index([courseId, dueAt])
+}
+
+model AssignmentProgress {
+  id           String         @id @default(cuid())
+  assignmentId String
+  userId       String
+  status       ProgressStatus @default(TODO)
+  updatedAt    DateTime       @updatedAt
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, userId])
+}
+
+model Reminder {
+  id           String   @id @default(cuid())
+  userId       String
+  assignmentId String
+  remindAt     DateTime
+  sent         Boolean  @default(false)
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([sent, remindAt]) // used by the cron job
+}
+
+// ───────── Campus life ─────────
+model Announcement {
+  id           String   @id @default(cuid())
+  universityId String
+  courseId     String?  // null = campus-wide
+  authorId     String
+  title        String
+  body         String   @db.Text
+  pinned       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  university University @relation(fields: [universityId], references: [id])
+  course     Course?    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  author     User       @relation(fields: [authorId], references: [id])
+
+  @@index([universityId, createdAt])
+  @@index([courseId])
+}
+
+model Event {
+  id           String    @id @default(cuid())
+  universityId String
+  createdById  String
+  title        String
+  description  String?   @db.Text
+  location     String?
+  startsAt     DateTime
+  endsAt       DateTime?
+
+  university University @relation(fields: [universityId], references: [id])
+  createdBy  User       @relation(fields: [createdById], references: [id])
+
+  @@index([universityId, startsAt])
+}
+
+// ───────── Study groups & notes ─────────
+model StudyGroup {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  courseId    String?
+  ownerId     String
+  isPrivate   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  course Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  owner  User    @relation(fields: [ownerId], references: [id])
+
+  members GroupMember[]
+  notes   Note[]
+
+  @@index([courseId])
+}
+
+model GroupMember {
+  id       String    @id @default(cuid())
+  groupId  String
+  userId   String
+  role     GroupRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+
+  group StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  authorId  String
+  groupId   String?  // null = personal note
+  courseId  String?
+  title     String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  group  StudyGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  course Course?     @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  @@index([groupId])
+  @@index([authorId])
+}
