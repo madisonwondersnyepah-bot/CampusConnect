@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/courses.controller');
 const timetable = require('../controllers/timetable.controller');
+const assignments = require('../controllers/assignments.controller');
 const { authenticate } = require('../middleware/auth');
 const { requireRole, requireCourseManager } = require('../middleware/requireRole');
 const validate = require('../middleware/validate');
@@ -10,6 +11,7 @@ const {
   listQuerySchema,
 } = require('../validators/course.validator');
 const { createSlotSchema, updateSlotSchema } = require('../validators/timetable.validator');
+const { createAssignmentSchema } = require('../validators/assignment.validator');
 
 router.use(authenticate); // every route below requires login
 
@@ -34,5 +36,9 @@ router.get('/:courseId/slots', timetable.listSlots);
 router.post('/:courseId/slots', requireCourseManager(), validate(createSlotSchema), timetable.createSlot);
 router.patch('/:courseId/slots/:slotId', requireCourseManager(), validate(updateSlotSchema), timetable.updateSlot);
 router.delete('/:courseId/slots/:slotId', requireCourseManager(), timetable.removeSlot);
+
+// Assignments
+router.get('/:courseId/assignments', assignments.listForCourse);
+router.post('/:courseId/assignments', requireCourseManager(), validate(createAssignmentSchema), assignments.create);
 
 module.exports = router;
