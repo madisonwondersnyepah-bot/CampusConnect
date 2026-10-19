@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/courses.controller');
+const timetable = require('../controllers/timetable.controller');
 const { authenticate } = require('../middleware/auth');
 const { requireRole, requireCourseManager } = require('../middleware/requireRole');
 const validate = require('../middleware/validate');
@@ -8,6 +9,7 @@ const {
   updateCourseSchema,
   listQuerySchema,
 } = require('../validators/course.validator');
+const { createSlotSchema, updateSlotSchema } = require('../validators/timetable.validator');
 
 router.use(authenticate); // every route below requires login
 
@@ -26,5 +28,11 @@ router.delete('/:courseId/enroll', requireRole('STUDENT', 'REP'), ctrl.unenroll)
 // Course manager (admin, or the course's own lecturer)
 router.get('/:courseId/students', requireCourseManager(), ctrl.roster);
 router.delete('/:courseId/students/:userId', requireCourseManager(), ctrl.removeStudent);
+
+// Timetable slots
+router.get('/:courseId/slots', timetable.listSlots);
+router.post('/:courseId/slots', requireCourseManager(), validate(createSlotSchema), timetable.createSlot);
+router.patch('/:courseId/slots/:slotId', requireCourseManager(), validate(updateSlotSchema), timetable.updateSlot);
+router.delete('/:courseId/slots/:slotId', requireCourseManager(), timetable.removeSlot);
 
 module.exports = router;
