@@ -7,8 +7,10 @@
     "test": "tests"
   },
   "scripts": {
-  "dev": "nodemon src/server.js",
-  "start": "node src/server.js"
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "pretest": "node scripts/prepare-test-db.js",
+    "test": "jest --runInBand"
   },
   "keywords": [],
   "author": "",

@@ -1,5 +1,7 @@
 # 🎓 CampusConnect
 
+[![CI](https://github.com/madisonwondersnyepah-bot/CampusConnect/actions/workflows/ci.yml/badge.svg)](https://github.com/madisonwondersnyepah-bot/CampusConnect/actions/workflows/ci.yml)
+
 A full-stack student life platform for universities in Rwanda. Students manage timetables, assignment deadlines and reminders, follow campus announcements and events, and collaborate in study groups with shared notes. Lecturers, student representatives and admins get role-based tools to run it all.
 
 > Built to demonstrate full-stack development, authentication, relational database design and role-based access control.
@@ -122,6 +124,23 @@ The seed script creates these, all with the password `Password123!`:
 
 Create student accounts through the sign-up page. **Delete or change the seed accounts before any public deployment.**
 
+## Testing
+
+The API has integration tests (Jest and Supertest) that run against a real PostgreSQL database. They focus on the rules that matter most: role checks, university isolation, hidden resources, token rotation and the admin safety rails.
+
+1. Create a **separate** empty database for tests (for example a second Neon project).
+2. Create `server/.env.test` containing `TEST_DATABASE_URL="postgresql://..."` (use the direct connection string).
+3. Run:
+
+```bash
+cd server
+npm test
+```
+
+`npm test` applies the migrations to the test database, then runs the suite. **The suite empties its database before each test file**, so it refuses to start if `TEST_DATABASE_URL` points at the same database as `DATABASE_URL`.
+
+CI runs the same suite against a throwaway Postgres container on every push (see `.github/workflows/ci.yml`).
+
 ## Project structure
 
 ```
@@ -154,7 +173,6 @@ CampusConnect/
 
 ## Roadmap
 
-- Automated tests (Jest and Supertest) and a CI workflow
 - Email delivery for reminders (the hook is in `reminder.service.js`)
 - Audit log of admin actions
 - File attachments for notes and assignments
