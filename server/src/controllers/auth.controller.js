@@ -75,3 +75,11 @@ exports.logout = asyncHandler(async (req, res) => {
 exports.me = asyncHandler(async (req, res) => {
   res.json({ user: req.user });
 });
+
+exports.universities = asyncHandler(async (req, res) => {
+  const universities = await prisma.university.findMany({
+    select: { id: true, name: true, city: true },
+    orderBy: { name: 'asc' },
+  });
+  res.json({ universities });
+});

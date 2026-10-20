@@ -2,16 +2,30 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
-async function main() {
-  const uni = await prisma.university.upsert({
-    where: { name: 'University of Rwanda' },
-    update: {},
-    create: { name: 'University of Rwanda', city: 'Kigali' },
-  });
+const UNIVERSITIES = [
+  { name: 'University of Rwanda', city: 'Kigali' },
+  { name: 'African Leadership University (ALU)', city: 'Kigali' },
+  { name: 'Université Libre de Kigali (ULK)', city: 'Kigali' },
+  { name: 'University of Lay Adventists of Kigali (UNILAK)', city: 'Kigali' },
+  { name: 'Adventist University of Central Africa (AUCA)', city: 'Kigali' },
+  { name: 'Mount Kigali University Rwanda (MKU)', city: 'Kigali' },
+];
 
+async function main() {
+  const universities = {};
+  for (const u of UNIVERSITIES) {
+    universities[u.name] = await prisma.university.upsert({
+      where: { name: u.name },
+      update: {},
+      create: u,
+    });
+  }
+
+  // Demo accounts live at the first university (local development only)
+  const uni = universities['University of Rwanda'];
   const passwordHash = await bcrypt.hash('Password123!', 12);
 
-  const admin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'admin@campusconnect.test' },
     update: {},
     create: { name: 'Admin User', email: 'admin@campusconnect.test', passwordHash, role: 'ADMIN', universityId: uni.id },
@@ -29,8 +43,8 @@ async function main() {
     create: { code: 'CS101', title: 'Intro to Programming', semester: '2026-A', universityId: uni.id, lecturerId: lecturer.id },
   });
 
-  console.log('University id:', uni.id);
-  console.log('Seeded admin and lecturer (password: Password123!)');
+  console.log('Universities:');
+  Object.values(universities).forEach((u) => console.log(`  ${u.name}  (${u.id})`));
 }
 
 main().finally(() => prisma.$disconnect());

@@ -5,6 +5,7 @@ const { authLimiter } = require('../middleware/rateLimit');
 const validate = require('../middleware/validate');
 const { registerSchema, loginSchema } = require('../validators/auth.validator');
 
+router.get('/universities', ctrl.universities); // public: feeds the sign-up form
 router.post('/register', authLimiter, validate(registerSchema), ctrl.register);
 router.post('/login', authLimiter, validate(loginSchema), ctrl.login);
 router.post('/refresh', ctrl.refresh);
